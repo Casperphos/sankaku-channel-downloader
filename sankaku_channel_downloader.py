@@ -226,7 +226,7 @@ def download_posts(driver):
                 f"Downloading post {post_id}, [post {post_ids.index(post_id) + 1}/{post_len}, page {current_page}/{last_page}]"
             )
             download_post(post_id, driver)
-            random_wait = random.randint(5, 10)
+            random_wait = random.randint(5, 10)  # TODO: Make this configurable
             wait(random_wait, random_wait, log)
 
             end_time = time.time()

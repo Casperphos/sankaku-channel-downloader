@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import time
+
 import colorama
 from colorama import Fore, Style
 
@@ -109,3 +110,7 @@ def wait(seconds, print_every_x_seconds, logger):
     if seconds <= 0.001:
         time.sleep(seconds)
         logger.success(f"Waited for {initial_seconds} seconds")
+
+
+log = TimedColoredLogger()
+wait = wait

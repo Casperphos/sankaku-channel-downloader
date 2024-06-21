@@ -100,27 +100,52 @@ def get_post_ids(page_num, driver):
     return post_ids
 
 
-def save_post(post_id, response, post_extension):
+def get_post_content(post_id, content_link):
+    try:
+        response = requests.get(content_link, stream=True)
+    except RequestException as e:
+        log.error(f"Failed to fetch original image for {post_id}, {e}")
+        return False
+
+    if response.status_code != 200:
+        log.error(
+            f"Failed to fetch original image for {post_id}, status code: {response.status_code}"
+        )
+        return False
+
+    return response
+
+
+def save_post(post_id, post_extension, content_link):
+    identical_file_exists = False
+    compare_existing = SANKAKU_SECRETS["COMPARE_EXISTING"]
     save_dir = SANKAKU_SECRETS["SAVE_DIR"]
     save_path = os.path.normpath(save_dir + f"/{post_id}.{post_extension.group(1)}")
     os.makedirs(save_dir, exist_ok=True)
 
-    log.info(
-        f"Saving post {post_id} to {save_path}, it weighs {round(len(response.content) / 1024 / 1024, 2)} MB"
-    )
-
     if os.path.exists(save_path):
-        if SANKAKU_SECRETS["COMPARE_EXISTING"]:
+        if compare_existing:
             log.info(
                 f"Post {post_id} already exists in the directory, comparing hashes"
             )
-            return compare_existing_files(save_path, response, post_extension, post_id)
+            identical_file_exists = compare_existing_files(
+                save_path,
+                get_post_content(post_id, content_link),
+                post_extension,
+                post_id,
+            )
         else:
             log.warning(f"Post {post_id} already exists in the directory, skipping")
             return False
 
-    stream_download(save_path, response)
+    if identical_file_exists:
+        log.warning(f"Identical file for post {post_id} already exists, skipping")
+        return True  # compare_existing_files incurs a download, so we return True here
 
+    response = get_post_content(post_id, content_link)
+    file_size = round(len(response.content) / 1024 / 1024, 2)
+    log.info(f"Saving post {post_id} to {save_path}, it weighs {file_size} MB")
+    stream_download(save_path, response)
     log.success(f"Post {post_id} downloaded successfully")
     return True
 
@@ -147,23 +172,17 @@ def download_post(post_id, driver):
         log.error(f"Post {post_id} is downsized")
         return False
 
-    log.info(
-        f"Downloading post content for: {post_id} with url: {content_link} and type: {content_type}"
-    )
-
-    try:
-        response = requests.get(content_link, stream=True)
-    except RequestException as e:
-        log.error(f"Failed to fetch original image for {post_id}, {e}")
-        return False
+    log.info(f"Downloading post content for: {post_id}")
+    log.info(f"The url is: {content_link}")
+    log.info(f"The type is: {content_type}")
 
     post_extension = re.search(r"(jpg|png|gif|jpeg|mp4|webm)", content_link)
     if not post_extension:
         log.error(f"Post {post_id} has an unknown extension: {content_link}")
         return False
 
-    save_post(post_id, response, post_extension)
-    return
+    file_downloaded = save_post(post_id, post_extension, content_link)
+    return file_downloaded
 
 
 def get_last_page_num(driver):
@@ -225,9 +244,10 @@ def download_posts(driver):
             log.info(
                 f"Downloading post {post_id}, [post {post_ids.index(post_id) + 1}/{post_len}, page {current_page}/{last_page}]"
             )
-            download_post(post_id, driver)
-            random_wait = random.randint(5, 10)  # TODO: Make this configurable
-            wait(random_wait, random_wait, log)
+            file_downloaded = download_post(post_id, driver)
+            if file_downloaded:
+                random_wait = random.randint(5, 10)
+                wait(random_wait, random_wait, log)
 
             end_time = time.time()
             log.success(
@@ -244,7 +264,6 @@ def download_posts(driver):
 
 def main():
     log.success("Started sankaku_channel_downloader.py")
-
     driver = set_up_driver()
     login_into_sankaku(driver)
     download_posts(driver)

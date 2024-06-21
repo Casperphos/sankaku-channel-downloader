@@ -102,8 +102,7 @@ def get_post_ids(page_num, driver):
 
 def save_post(post_id, response, post_extension):
     save_dir = SANKAKU_SECRETS["SAVE_DIR"]
-    save_path = save_dir + f"/{post_id}.{post_extension.group(1)}"
-    save_path = re.sub(r"[/\\]{2,}", "/", save_path)
+    save_path = os.path.normpath(save_dir + f"/{post_id}.{post_extension.group(1)}")
     os.makedirs(save_dir, exist_ok=True)
 
     log.info(

@@ -46,7 +46,7 @@ def compare_hashes(save_path, temp_save_path, post_id):
 
 def compare_existing_files(save_path, response, post_extension, post_id):
     os.makedirs(SANKAKU_SECRETS["SAVE_DIR"] + f"/temp", exist_ok=True)
-    temp_save_path = (
+    temp_save_path = os.path.normpath(
         SANKAKU_SECRETS["SAVE_DIR"] + f"/temp/{post_id}.{post_extension.group(1)}"
     )
 

@@ -11,7 +11,7 @@ from utils.sankaku_globals import (
     set_wrong_hashes_posts,
 )
 
-SANKAKU_SECRETS = get_sankaku_secrets()
+sankaku_secrets = get_sankaku_secrets()
 
 
 def update_hash(path, hash):
@@ -45,9 +45,9 @@ def compare_hashes(save_path, temp_save_path, post_id):
 
 
 def compare_existing_files(save_path, response, post_extension, post_id):
-    os.makedirs(SANKAKU_SECRETS["SAVE_DIR"] + f"/temp", exist_ok=True)
+    os.makedirs(sankaku_secrets["save_dir"] + f"/temp", exist_ok=True)
     temp_save_path = os.path.normpath(
-        SANKAKU_SECRETS["SAVE_DIR"] + f"/temp/{post_id}.{post_extension.group(1)}"
+        sankaku_secrets["save_dir"] + f"/temp/{post_id}.{post_extension.group(1)}"
     )
 
     log.info(f"Saving post {post_id} to {temp_save_path}, for hash comparison")
@@ -58,6 +58,6 @@ def compare_existing_files(save_path, response, post_extension, post_id):
         return False
 
     os.remove(temp_save_path)
-    shutil.rmtree(SANKAKU_SECRETS["SAVE_DIR"] + f"/temp")
+    shutil.rmtree(sankaku_secrets["save_dir"] + f"/temp")
 
     return True

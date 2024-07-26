@@ -31,20 +31,20 @@ from utils.sankaku_globals import (
 from utils.sankaku_hash import compare_existing_files
 from utils.sankaku_setup import set_up_driver
 
-SANKAKU_SECRETS = get_sankaku_secrets()
+sankaku_secrets = get_sankaku_secrets()
 
 
 def login_into_sankaku(driver):
     log.info("Logging into Sankaku Complex")
 
-    driver.get(SANKAKU_SECRETS["LOGIN_URL"])
+    driver.get(sankaku_secrets["login_url"])
     WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "email")))
     WebDriverWait(driver, 10).until(
         EC.presence_of_element_located((By.NAME, "password"))
     )
 
-    driver.find_element(By.NAME, "email").send_keys(SANKAKU_SECRETS["USERNAME"])
-    driver.find_element(By.NAME, "password").send_keys(SANKAKU_SECRETS["PASSWORD"])
+    driver.find_element(By.NAME, "email").send_keys(sankaku_secrets["username"])
+    driver.find_element(By.NAME, "password").send_keys(sankaku_secrets["password"])
     driver.find_element(
         By.XPATH, '//*[@id="app"]/div/div[2]/div/form/div/div[2]/div[2]/button[1]'
     ).click()  # TODO: Change this xpath
@@ -62,7 +62,7 @@ def login_into_sankaku(driver):
 def parse_post_ids_from_page(page_num, driver):
     log.info(f"Fetching posts from page {page_num}")
 
-    url = SANKAKU_SECRETS["BASE_URL"] + f"&page={page_num}"
+    url = sankaku_secrets["base_url"] + f"&page={page_num}"
     driver.get(url)
 
     WebDriverWait(driver, 20).until(
@@ -81,21 +81,23 @@ def parse_post_ids_from_page(page_num, driver):
 
 def get_post_ids(page_num, driver):
     check_limit = 5
-    post_ids = parse_post_ids_from_page(page_num, driver)
+    post_ids = []
 
-    while not post_ids and check_limit > 0:
-        log.warning(
-            f"Failed to fetch posts from page {page_num}, retrying in 10 seconds"
-        )
-        wait(10, 10, log)
-        post_ids = parse_post_ids_from_page(page_num, driver)
-        check_limit -= 1
+    while not post_ids:
+        try:
+            post_ids = parse_post_ids_from_page(page_num, driver)
+        except TimeoutException as _:
+            log.warning(
+                f"Failed to fetch posts from page {page_num}, retrying in 10 seconds"
+            )
+            wait(10, 10, log)
+            check_limit -= 1
 
-    if check_limit == 0:
-        log.error(f"Failed to fetch posts from page {page_num}, skipping")
-        set_failed_pages(get_failed_pages() + [page_num])
-        page_num += 1
-        return []
+        if check_limit == 0:
+            log.error(f"Failed to fetch posts from page {page_num}, skipping")
+            set_failed_pages(get_failed_pages() + [page_num])
+            page_num += 1
+            return []
 
     return post_ids
 
@@ -118,8 +120,8 @@ def get_post_content(post_id, content_link):
 
 def save_post(post_id, post_extension, content_link):
     identical_file_exists = False
-    compare_existing = SANKAKU_SECRETS["COMPARE_EXISTING"]
-    save_dir = SANKAKU_SECRETS["SAVE_DIR"]
+    compare_existing = sankaku_secrets["compare_existing"]
+    save_dir = sankaku_secrets["save_dir"]
     save_path = os.path.normpath(save_dir + f"/{post_id}.{post_extension.group(1)}")
     os.makedirs(save_dir, exist_ok=True)
 
@@ -143,6 +145,10 @@ def save_post(post_id, post_extension, content_link):
         return True  # compare_existing_files incurs a download, so we return True here
 
     response = get_post_content(post_id, content_link)
+
+    if not response:
+        return False
+
     file_size = round(len(response.content) / 1024 / 1024, 2)
     log.info(f"Saving post {post_id} to {save_path}, it weighs {file_size} MB")
     stream_download(save_path, response)
@@ -188,19 +194,19 @@ def download_post(post_id, driver):
 def get_last_page_num(driver):
     log.info("Getting last page number")
 
-    potential_last_page = SANKAKU_SECRETS["LAST_PAGE_NUM"]
+    potential_last_page = sankaku_secrets["last_page_num"]
     if potential_last_page != None and str(potential_last_page).isdigit():
         log.success(
             f"Last page number was specified, last page number: {potential_last_page}"
         )
-        return int(SANKAKU_SECRETS["LAST_PAGE_NUM"])
+        return int(sankaku_secrets["last_page_num"])
 
     log.warning("Last page number was not specified, attempting to fetch it")
 
     current_page = 1
     while True:  # TODO: Better way to handle this
         try:
-            url = SANKAKU_SECRETS["BASE_URL"] + f"&page={current_page}"
+            url = sankaku_secrets["base_url"] + f"&page={current_page}"
             log.info(f"Checking if page {current_page} is the last page, url: {url}")
 
             driver.get(url)
@@ -220,12 +226,12 @@ def get_last_page_num(driver):
 def get_first_page_num():
     log.info("Getting first page number")
 
-    potential_first_page = SANKAKU_SECRETS["FIRST_PAGE_NUM"]
+    potential_first_page = sankaku_secrets["first_page_num"]
     if potential_first_page != None and str(potential_first_page).isdigit():
         log.success(
             f"First page number was specified, first page number: {potential_first_page}"
         )
-        return int(SANKAKU_SECRETS["FIRST_PAGE_NUM"])
+        return int(sankaku_secrets["first_page_num"])
 
     log.warning("First page number was not specified, defaulting to 1")
     return 1
@@ -238,17 +244,27 @@ def download_posts(driver):
     while current_page <= last_page:
         post_ids = get_post_ids(current_page, driver)
         post_len = len(post_ids)
+
+        if not post_ids:
+            current_page += 1
+            continue
+
         for post_id in post_ids:
             start_time = time.time()
 
             log.info(
                 f"Downloading post {post_id}, [post {post_ids.index(post_id) + 1}/{post_len}, page {current_page}/{last_page}]"
             )
-            file_downloaded = download_post(post_id, driver)
-            if file_downloaded:
-                random_wait = random.randint(5, 10)
-                wait(random_wait, random_wait, log)
 
+            file_downloaded = download_post(post_id, driver)
+            
+            if not file_downloaded:
+                set_inaccessible_posts(get_inaccessible_posts() + [post_id])
+                log.error(f"Failed to download post {post_id}, skipping")
+                continue
+
+            random_wait = random.randint(5, 10)
+            wait(random_wait, random_wait, log)
             end_time = time.time()
             log.success(
                 f"Downloading that post took {round(end_time - start_time, 2)} seconds"

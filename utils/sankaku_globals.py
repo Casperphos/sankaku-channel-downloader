@@ -1,4 +1,4 @@
-SANKAKU_SECRETS = {}
+sankaku_secrets = {}
 WRONG_HASHES_POSTS = []
 INACCESSIBLE_POSTS = []
 FAILED_PAGES = []
@@ -6,17 +6,17 @@ DOWNLOADED_PAGES = []
 
 from utils.sankaku_setup import parse_config
 
-SANKAKU_SECRETS = parse_config()
+sankaku_secrets = parse_config()
 
 
 def get_sankaku_secrets():
-    global SANKAKU_SECRETS
-    return SANKAKU_SECRETS
+    global sankaku_secrets
+    return sankaku_secrets
 
 
 def set_sankaku_secrets(secrets):
-    global SANKAKU_SECRETS
-    SANKAKU_SECRETS = secrets
+    global sankaku_secrets
+    sankaku_secrets = secrets
 
 
 def get_wrong_hashes_posts():

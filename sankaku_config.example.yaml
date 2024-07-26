@@ -1,9 +1,9 @@
-SANKAKU_SECRETS:
-  USERNAME: your_sankaku_username
-  PASSWORD: your_sankaku_password
-  SAVE_DIR: C:/files_will_be_saved_here/
-  BASE_URL: https://chan.sankakucomplex.com/en/posts?tags=neptunia_%28series%29+rating%3AG
-  FIRST_PAGE_NUM: 1
-  LAST_PAGE_NUM: 10
-  LOGIN_URL: https://chan.sankakucomplex.com/users/login
-  COMPARE_EXISTING: True
+sankaku_secrets:
+  username: your_sankaku_username
+  password: your_sankaku_password
+  save_dir: C:/files_will_be_saved_here/
+  base_url: https://chan.sankakucomplex.com/en/posts?tags=neptunia_%28series%29+rating%3AG
+  first_page_num: 1
+  last_page_num: 10
+  login_url: https://chan.sankakucomplex.com/users/login
+  compare_existing: True
